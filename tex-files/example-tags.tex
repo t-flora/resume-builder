@@ -1,0 +1,66 @@
+% Example file demonstrating the new role-based content system
+% This file shows how to use tags at different levels
+
+\section{EXAMPLE SECTION}
+
+% Content that appears for all roles (no tags)
+This content appears for all roles.
+
+% Block-level tagging - entire experience blocks
+\begin{rolecontent}{qr,qd}
+\begin{experience}[Example City, ST]
+                   {Example Company}
+                   {2020 - 2023}
+                   {QR/QD role}
+    \item This entire experience block appears only for qr and qd roles
+    \item Another bullet point for qr/qd roles
+\end{experience}
+\end{rolecontent}
+
+\begin{rolecontent}{tech,soleng}
+\begin{experience}[Example City, ST]
+                   {Example Company}
+                   {2020 - 2023}
+                   {TECH/SOLENG role}
+    \item This entire experience block appears only for tech and soleng roles
+    \item Another bullet point for tech/soleng roles
+\end{experience}
+\end{rolecontent}
+
+% Mixed content with inline tagging
+\begin{experience}[Example City, ST]
+                   {Example Company}
+                   {2020 - 2023}
+                   {Mixed Role}
+    \item This bullet appears for all roles
+    \rolecontent{qr}{\item This bullet appears only for qr role}
+    \rolecontent{qd,tech}{\item This bullet appears for qd and tech roles}
+    \rolecontent{soleng}{\item This bullet appears only for soleng role}
+\end{experience}
+
+% Section-level tagging
+\begin{rolecontent}{qr}
+\section{QUANTITATIVE RESEARCH SECTION}
+This entire section appears only for qr role.
+\end{rolecontent}
+
+\begin{rolecontent}{qd,tech}
+\section{TECHNICAL SECTION}
+This entire section appears for qd and tech roles.
+\end{rolecontent}
+
+% Nested tagging example
+\begin{rolecontent}{qr,qd,tech}
+\section{SHARED SECTION}
+This section appears for qr, qd, and tech roles.
+
+\begin{rolecontent}{qr}
+\subsection{QR Subsection}
+This subsection appears only within qr builds.
+\end{rolecontent}
+
+\begin{rolecontent}{qd}
+\subsection{QD Subsection}
+This subsection appears only within qd builds.
+\end{rolecontent}
+\end{rolecontent} 

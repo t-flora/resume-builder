@@ -1,93 +1,176 @@
-# Resume Builder
+# Resume Builder with Role-Based Content
 
-A LaTeX-based resume builder that generates different versions of your resume for different job roles using conditional content.
+A robust resume builder that generates customized resumes for different roles using a Python preprocessor and LaTeX.
 
-## Features
+## How It Works
 
-- **Role-based customization**: Generate different resume versions for different job types (QR, QD, Tech, SE)
-- **Modular content**: Content is split into separate `.tex` files for easy editing
-- **Conditional content**: Use `\qronly{}`, `\qdonly{}`, `\techonly{}`, and `\solengonly{}` macros to include role-specific content
-- **Location control**: Optionally include or exclude location from the header
-- **Automated builds**: Makefile handles compilation and dependency tracking
+The system uses a **Python preprocessor** to filter LaTeX content based on role tags before compilation:
+
+1. **Source Files**: Your LaTeX files in `tex-files/` contain role tags
+2. **Python Preprocessor**: `scripts/resume_builder.py` processes the files and removes/excludes content based on the target role
+3. **Clean LaTeX**: Generates role-specific LaTeX files in `build/artifacts/`
+4. **PDF Generation**: LaTeX compiles the filtered files into PDFs in `build/pdfs/`
+
+This approach is much more robust than complex LaTeX macros and allows for flexible, nested content filtering.
 
 ## Quick Start
 
-1. **Install LaTeX** (if not already installed):
-   ```bash
-   brew install --cask mactex
-   ```
-
-2. **Build all resume versions**:
-   ```bash
-   make all
-   ```
-
-3. **Build specific role**:
-   ```bash
-   make qr    # Quantitative Research
-   make qd    # Quantitative Development
-   make tech  # Technology
-   make soleng # Software Engineering
-   ```
-
-4. **Include location in header**:
-   ```bash
-   make qr INCLUDE_LOCATION=1
-   make qd INCLUDE_LOCATION=1
-   ```
-
-## Usage
-
-### Role-based Content
-
-Wrap content in role-specific macros to include it only for certain roles:
-
-```latex
-\qronly{\item This only appears in QR resumes}
-\qdonly{\item This only appears in QD resumes}
-\techonly{\item This only appears in Tech resumes}
-\solengonly{\item This only appears in Software Engineering resumes}
+### Build all roles
+```bash
+make all
 ```
 
-### Location Control
+### Build for specific role
+```bash
+make qr      # Build for quantitative research role
+make qd      # Build for quantitative development role
+make tech    # Build for technical role
+make soleng  # Build for solutions engineering role
+```
 
-- **Default behavior**: Location is omitted from the header
-- **Include location**: Pass `INCLUDE_LOCATION=1` to include "Chicago, IL" in the header
-- **Example**: `make qr INCLUDE_LOCATION=1` generates a QR resume with location included
+### Build for custom role
+```bash
+make build-customrole
+```
 
-### File Structure
+### View available PDFs
+```bash
+make list-pdfs
+```
+
+## Directory Structure
 
 ```
 resume-builder/
-├── tex-files/           # LaTeX source files
-│   ├── main.tex        # Main document with role macros
-│   ├── header.tex      # Header with conditional location
-│   ├── education.tex   # Education section
-│   ├── experience.tex  # Experience section
-│   ├── skills.tex      # Skills section
-│   └── projects.tex    # Projects section
-├── templates/          # Style files
-│   └── resume-layout.sty
-├── build/             # Generated PDFs
-└── Makefile          # Build automation
+├── tex-files/              # Source LaTeX files (your content)
+│   ├── main.tex           # Main document
+│   ├── header.tex         # Header section
+│   ├── experience.tex     # Experience section
+│   └── ...                # Other sections
+├── templates/             # LaTeX style files
+├── scripts/              # Python preprocessor
+│   └── resume_builder.py
+├── build/                # Generated files
+│   ├── artifacts/        # Processed LaTeX files (cleaned by 'make clean')
+│   └── pdfs/            # Final PDFs (preserved by 'make clean')
+└── Makefile             # Build system
 ```
 
-## Commands
+## Tag System
 
-- `make all` - Build all role versions
-- `make qr` - Build Quantitative Research version
-- `make qd` - Build Quantitative Development version
-- `make tech` - Build Technology version
-- `make soleng` - Build Software Engineering version
-- `make clean` - Remove all generated files
-- `make force` - Force rebuild all versions
+### Block-level tagging
+Wrap entire sections or experience blocks:
 
-## Overleaf Compatibility
+```latex
+\begin{rolecontent}{qr,qd,tech}
+\begin{experience}[City, ST]
+                   {Company Name}
+                   {2020 - 2023}
+                   {Job Title}
+    \item This entire experience block appears for qr, qd, and tech roles
+\end{experience}
+\end{rolecontent}
+```
 
-This project works with Overleaf! Simply upload the `tex-files/` directory and `templates/` directory to Overleaf, then compile `main.tex`. The role-based content will work as expected.
+### Inline tagging
+Tag individual bullets within experience blocks:
+
+```latex
+\begin{experience}[City, ST]
+                   {Company Name}
+                   {2020 - 2023}
+                   {Job Title}
+    \item This bullet appears for all roles
+    \rolecontent{qr}{\item This bullet appears only for qr role}
+    \rolecontent{qd,tech}{\item This bullet appears for qd and tech roles}
+\end{experience}
+```
+
+### Content without tags
+Content without any tags appears in all role builds.
+
+## Build Commands
+
+| Command | Description |
+|---------|-------------|
+| `make all` | Build PDFs for all roles |
+| `make qr` | Build PDF for quantitative research role |
+| `make qd` | Build PDF for quantitative development role |
+| `make tech` | Build PDF for technical role |
+| `make soleng` | Build PDF for solutions engineering role |
+| `make build-rolename` | Build for custom role |
+| `make clean` | Remove build artifacts (keeps PDFs) |
+| `make clean-all` | Remove everything including PDFs |
+| `make list-pdfs` | Show available PDFs |
+| `make force` | Force rebuild all PDFs |
+
+### Location Control
+
+Control whether location appears in the header:
+
+```bash
+# Include location (Chicago, IL)
+make qr INCLUDE_LOC=1
+make all INCLUDE_LOC=1
+
+# Exclude location (default)
+make qr
+make all
+```
+
+The location is automatically included/excluded based on the `INCLUDE_LOC` variable in the Makefile or when passed as a parameter.
+
+## Adding New Roles
+
+1. Add the role to the `ROLES` variable in `Makefile`
+2. Use the role name in your content tags
+3. Build with `make build-rolename`
+
+## Benefits Over LaTeX-Only Solutions
+
+- **No complex macros**: No need for recursive LaTeX macros
+- **Order-independent**: Role lists work regardless of order
+- **Nested support**: Tags can be nested at any level
+- **Easy debugging**: Python errors are clearer than LaTeX errors
+- **Extensible**: Easy to add new features or roles
+- **Clean separation**: Build artifacts separate from final PDFs
+
+## Example Usage
+
+See `tex-files/example-tags.tex` for comprehensive examples of the tagging system.
+
+## Requirements
+
+- Python 3.6+
+- LaTeX distribution (pdflatex)
+- Make
 
 ## Troubleshooting
 
-- **"resume is up to date"**: Use `make force` to force a rebuild
-- **LaTeX errors**: Check for typos in macro names (e.g., `\QDOnly` vs `\QDonly`)
-- **Missing files**: Ensure all `.tex` files are in the `tex-files/` directory 
+### Common Issues
+
+1. **Python script not found**: Ensure `scripts/resume_builder.py` exists and is executable
+2. **LaTeX compilation errors**: Check that your LaTeX syntax is correct in source files
+3. **Missing content**: Verify your role tags match the roles defined in the Makefile
+
+### Debug Mode
+
+Run the Python preprocessor directly for debugging:
+
+```bash
+python3 scripts/resume_builder.py --source-dir tex-files --output-dir build/artifacts --role qr
+```
+
+### Understanding the Build Process
+
+1. **Preprocessing**: Python script reads your LaTeX files and filters content based on role tags
+2. **Artifacts**: Clean, role-specific LaTeX files are created in `build/artifacts/`
+3. **Compilation**: LaTeX compiles the artifacts into PDFs in `build/pdfs/`
+4. **Cleanup**: `make clean` removes artifacts but preserves PDFs
+
+## Contributing
+
+1. Add your content to the appropriate `.tex` files in `tex-files/`
+2. Use the tagging system to specify which roles should see your content
+3. Test with `make clean && make all`
+4. Commit your changes 
