@@ -1,0 +1,114 @@
+\ProvidesPackage{resume-layout}
+\RequirePackage{xparse}
+\RequirePackage{etoolbox}
+
+% ... macro or environment code from above ...
+\usepackage{xparse}
+
+\NewDocumentEnvironment{experience}{O{} m m m +b}{
+  % #1 optional location (default empty)
+  % #2 company / org
+  % #3 date range
+  % #4 role / title
+  % #5 bullets (environment body)
+  \begin{twocolentry}{\textbf{#1}}
+    \textbf{#2}
+  \end{twocolentry}
+  \begin{twocolentry}{\textbf{#3}}
+    \textbf{#4}
+  \end{twocolentry}
+  \begin{onecolentry}
+    \begin{highlights}#5\end{highlights}
+  \end{onecolentry}
+}{\ignorespacesafterend}
+
+\NewDocumentEnvironment{same_org_experience}{O{} m +b}{
+  % #1 date range
+  % #2 role / title
+  \begin{twocolentry}{\textbf{#1}}
+    \textbf{#2}
+  \end{twocolentry}
+  \begin{onecolentry}
+    \begin{highlights}#3\end{highlights}
+  \end{onecolentry}
+}{\ignorespacesafterend}
+
+\NewDocumentEnvironment{education_xp}{O{} m m m +b}{
+  % #1 location (default empty)
+  % #2 organization/university
+  % #3 graduation date
+  % #4 degree
+  % #5 coursework (non-bulleted)
+  \begin{twocolentry}{\textbf{#1}}
+    \textbf{#2}
+  \end{twocolentry}
+  \begin{twocolentry}{\textbf{#3}}
+    \textbf{#4}
+  \end{twocolentry}
+    #5
+}{\ignorespacesafterend}
+
+% --------------------------------------------------------------------
+% experience:
+%   [org=...,
+%    location=...,
+%    dates=...,
+%    title=...]         % ← all keys optional
+%   <body>              % ← bullet list (mandatory)
+% --------------------------------------------------------------------
+\ExplSyntaxOn
+\NewDocumentEnvironment{custom_experience}{O{} +b}
+ {
+   % 0. parse key–value list, filling empties with ""
+   \keys_set:nn { exp }
+     { org=, location=, dates=, title= , #1 }
+
+   % 1. first two-column row  (org | location)
+   \exp_print_twocol:nn
+     { \exp_key:nn {org} }  % left
+     { \exp_key:nn {location} } % right
+
+   % 2. second two-column row  (title | dates)
+   \exp_print_twocol:nn
+     { \exp_key:nn {title} }    % left
+     { \exp_key:nn {dates} }    % right
+
+   % 3. bullets
+   \begin{onecolentry}
+     \begin{highlights}
+       #2 % body = bullet list
+     \end{highlights}
+   \end{onecolentry}
+ }
+ {\ignorespacesafterend} % <end>
+% ---------- helpers --------------------------------------------------
+\cs_new_protected:Npn \exp_print_twocol:nn #1#2
+  { % print the row only if at least one cell is non-empty
+    \ifblank{#1}{%
+      \ifblank{#2}{}{ % left empty, right non-empty → one-column
+        \begin{onecolentry}\textbf{#2}\end{onecolentry}}
+    }{% left non-empty → two-column (right may be empty)
+      \begin{twocolentry}{\textbf{#2}}\textbf{#1}\end{twocolentry}}
+  }
+
+% key family for the parser
+\keys_define:nn { exp }
+  { org .tl_set:N = \l_exp_org_tl ,
+    location .tl_set:N = \l_exp_location_tl ,
+    dates   .tl_set:N = \l_exp_dates_tl ,
+    title   .tl_set:N = \l_exp_title_tl }
+
+% shortcuts
+\cs_new:Npn \exp_key:nn #1 { \tl_use:c { l_exp_#1_tl } }
+\ExplSyntaxOff
+
+% kill any spacing at begin/end of adjustwidth wrappers
+\AtBeginEnvironment{onecolentry}{\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}}
+\AtEndEnvironment  {onecolentry}{\vspace{-\topsep}}  % cancel the 'after' skip
+
+% idem for two/three-column versions
+\AtBeginEnvironment{twocolentry}{\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}}
+\AtEndEnvironment  {twocolentry}{\vspace{-\topsep}}
+
+\AtBeginEnvironment{threecolentry}{\setlength{\topsep}{0pt}\setlength{\partopsep}{0pt}}
+\AtEndEnvironment  {threecolentry}{\vspace{-\topsep}}
