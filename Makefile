@@ -8,7 +8,7 @@ ARTIFACTS_DIR := $(BUILD_DIR)/artifacts
 PDFS_DIR    := $(BUILD_DIR)/pdfs
 ROLES       := qr qd tech soleng              # add more tags here
 PDFS        := $(addprefix $(PDFS_DIR)/resume-,$(addsuffix .pdf,$(ROLES)))
-INCLUDE_LOC :=                           # set to any value to include location
+INCLUDE_LOC :=  # set to any value to include location
 PYTHON_SCRIPT := scripts/resume_builder.py
 # ---------------------------------------------------------------------
 

@@ -14,17 +14,22 @@ from typing import List, Set, Optional
 
 
 class ResumeBuilder:
+    """
+    ResumeBuilder class for processing LaTeX files and filtering content based on role tags.
+    Supports nested content blocks and individual line filtering.
+    """
     def __init__(self, source_dir: str, output_dir: str, roles: List[str], include_location: bool = False):
-        self.source_dir = Path(source_dir)
-        self.output_dir = Path(output_dir)
-        self.roles = set(roles)
-        self.current_role = None
-        self.include_location = include_location
+        self.source_dir = Path(source_dir) # source directory containing LaTeX files
+        self.output_dir = Path(output_dir) # output directory for processed files - NEW LaTeX files will be written here
+        self.roles = set(roles) # set of roles to build resumes for
+        self.current_role = None # current role being processed
+        self.include_location = include_location # whether to include location in header
         
         # Tag patterns
-        self.start_tag_pattern = re.compile(r'\\begin\{rolecontent\}\{([^}]+)\}')
+        self.start_tag_pattern = re.compile(r'\\begin\{rolecontent\}\{([^}]+)\}') # pattern matches \begin{rolecontent}{roles}
         self.end_tag_pattern = re.compile(r'\\end\{rolecontent\}')
         self.inline_tag_pattern = re.compile(r'\\rolecontent\{([^}]+)\}\{([^}]*)\}') # pattern matches \rolecontent{roles}{content}
+        self.exclude_tag_pattern = re.compile(r'\\exclude\{([^}]*)\}') # pattern matches \exclude{content}
         
     def parse_role_list(self, role_string: str) -> Set[str]:
         """Parse comma-separated role list and return set of roles."""
@@ -38,6 +43,10 @@ class ResumeBuilder:
     
     def process_line(self, line: str) -> Optional[str]:
         """Process a single line and return filtered content."""
+        # Check for exclude tags first - these always remove the line
+        if self.exclude_tag_pattern.search(line):
+            return None
+        
         # Check for inline rolecontent tags
         inline_match = self.inline_tag_pattern.search(line)
         if inline_match:
@@ -96,16 +105,47 @@ class ResumeBuilder:
                 # Don't include the end tag line
                 continue
             
-            # If we're in a role block, collect content
+            # If we're in a role block, collect content but also process inline tags
             if in_role_block:
-                block_content.append(line)
+                # Process inline tags even within role blocks
+                processed_line = self.process_line(line)
+                if processed_line is not None:
+                    block_content.append(processed_line)
             else:
                 # Process regular line (check for inline tags)
                 processed_line = self.process_line(line)
                 if processed_line is not None:
                     processed_lines.append(processed_line)
         
-        return '\n'.join(processed_lines)
+        # Join lines and do a final pass to clean up any remaining inline tags
+        result = '\n'.join(processed_lines)
+        
+        # Final cleanup: remove any remaining inline tags that weren't processed
+        result = self.inline_tag_pattern.sub('', result)
+        result = self.exclude_tag_pattern.sub('', result)
+        
+        # Remove empty highlights environments (no \item inside)
+        result = re.sub(
+            r'\\begin\{highlights\}\s*\\end\{highlights\}',
+            '',
+            result,
+            flags=re.DOTALL
+        )
+        # Remove highlights environments that only contain whitespace/comments/newlines
+        result = re.sub(
+            r'\\begin\{highlights\}([\s%]*)\\end\{highlights\}',
+            '',
+            result,
+            flags=re.DOTALL
+        )
+        # Remove highlights environments that contain only whitespace or comments (no \item)
+        result = re.sub(
+            r'\\begin\{highlights\}((?:\s|%.*|\n)*)\\end\{highlights\}',
+            '',
+            result,
+            flags=re.DOTALL
+        )
+        return result
     
     def build_for_role(self, role: str) -> None:
         """Build resume for a specific role."""
@@ -164,24 +204,26 @@ class ResumeBuilder:
                 f.write(f'\\def\\includelocation{{{str(self.include_location).lower()}}}\n')
 
 
-def main():
-    parser = argparse.ArgumentParser(description='Build role-based resumes from LaTeX source')
-    parser.add_argument('--source-dir', default='tex-files', help='Source directory with LaTeX files')
-    parser.add_argument('--output-dir', default='build', help='Output directory for processed files')
+def main() -> None:
+    """Main function to build role-based resumes from LaTeX source."""
+    parser = argparse.ArgumentParser(description='Build role-based resumes from LaTeX source') # parser for command line arguments
+    parser.add_argument('--source-dir', default='tex-files', help='Source directory containing LaTeX files') # source directory containing LaTeX files
+    parser.add_argument('--output-dir', default='build', help='Output directory containing processed files') # output directory for processed files
     parser.add_argument('--roles', nargs='+', default=['qr', 'qd', 'tech', 'soleng'], 
-                       help='List of roles to build')
-    parser.add_argument('--role', help='Build for specific role only')
+                       help='List of roles to build') # pass a list of multiple roleS to build
+    parser.add_argument('--role', help='Build for specific role only') # build for specific role only
     parser.add_argument('--include-location', action='store_true', 
                        help='Include location in header')
     
     args = parser.parse_args()
     
+    # If --role is specified, override --roles to contain only that role
+    if args.role:
+        args.roles = [args.role]
+    
     builder = ResumeBuilder(args.source_dir, args.output_dir, args.roles, args.include_location)
     
     if args.role:
-        if args.role not in args.roles:
-            print(f"Error: Role '{args.role}' not in allowed roles: {args.roles}")
-            sys.exit(1)
         builder.build_for_role(args.role)
     else:
         builder.build_all()
