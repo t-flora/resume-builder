@@ -30,6 +30,8 @@ class ResumeBuilder:
         self.end_tag_pattern = re.compile(r'\\end\{rolecontent\}')
         self.inline_tag_pattern = re.compile(r'\\rolecontent\{([^}]+)\}\{([^}]*)\}') # pattern matches \rolecontent{roles}{content}
         self.exclude_tag_pattern = re.compile(r'\\exclude\{([^}]*)\}') # pattern matches \exclude{content}
+        self.exclude_start_pattern = re.compile(r'\\begin\{exclude\}') # pattern matches \begin{exclude}
+        self.exclude_end_pattern = re.compile(r'\\end\{exclude\}') # pattern matches \end{exclude}
         
     def parse_role_list(self, role_string: str) -> Set[str]:
         """Parse comma-separated role list and return set of roles."""
@@ -81,10 +83,27 @@ class ResumeBuilder:
         lines = content.split('\n')
         processed_lines = []
         in_role_block = False
+        in_exclude_block = False
         current_block_roles = set()
         block_content = []
         
         for line in lines:
+            # Check for start of exclude block
+            if self.exclude_start_pattern.search(line):
+                in_exclude_block = True
+                # Don't include the start tag line
+                continue
+            
+            # Check for end of exclude block
+            if self.exclude_end_pattern.search(line):
+                in_exclude_block = False
+                # Don't include the end tag line
+                continue
+            
+            # Skip lines if we're in an exclude block
+            if in_exclude_block:
+                continue
+            
             # Check for start of rolecontent block
             start_match = self.start_tag_pattern.search(line)
             if start_match:
