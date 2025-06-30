@@ -49,19 +49,60 @@ class ResumeBuilder:
         if self.exclude_tag_pattern.search(line):
             return None
         
-        # Check for inline rolecontent tags
-        inline_match = self.inline_tag_pattern.search(line)
-        if inline_match:
-            roles_str, content = inline_match.groups()
-            content_roles = self.parse_role_list(roles_str)
-            if self.should_include_content(content_roles):
-                # Replace the tag with just the content
-                return self.inline_tag_pattern.sub(lambda m: content, line)
-            else:
-                # Remove the entire line if content shouldn't be included
-                return None
+        # Check for simple single-line rolecontent tags (not multi-line)
+        # Only process tags that don't contain \begin or \end
+        if '\\rolecontent{' in line and '\\begin{' not in line and '\\end{' not in line:
+            processed_line = self.process_simple_rolecontent_tags(line)
+            return processed_line
         
         return line
+    
+    def process_simple_rolecontent_tags(self, line: str) -> Optional[str]:
+        """Process simple single-line rolecontent tags."""
+        # Find all rolecontent tags in the line
+        result = line
+        while True:
+            # Find the start of a rolecontent tag
+            start_match = re.search(r'\\rolecontent\{([^}]+)\}\{', result)
+            if not start_match:
+                break
+            
+            start_pos = start_match.start()
+            roles_str = start_match.group(1)
+            
+            # Find the matching closing brace by counting braces
+            brace_count = 0
+            content_start = result.find('{', start_pos) + 1
+            content_end = content_start
+            
+            for i, char in enumerate(result[content_start:], content_start):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    if brace_count == 0:
+                        content_end = i
+                        break
+                    brace_count -= 1
+            
+            if content_end == content_start:
+                # No closing brace found, skip this tag
+                break
+            
+            # Extract the content and roles
+            content = result[content_start:content_end]
+            content_roles = self.parse_role_list(roles_str)
+            
+            # Replace the tag with content or remove it
+            if self.should_include_content(content_roles):
+                # Replace the entire tag with just the content
+                tag_start = result.find('\\rolecontent{', start_pos)
+                result = result[:tag_start] + content + result[content_end + 1:]
+            else:
+                # Remove the entire tag
+                tag_start = result.find('\\rolecontent{', start_pos)
+                result = result[:tag_start] + result[content_end + 1:]
+        
+        return result if result.strip() else None
     
     def process_file(self, input_file: Path, output_file: Path) -> None:
         """Process a single LaTeX file and write filtered output."""
@@ -78,71 +119,95 @@ class ResumeBuilder:
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(processed_content)
     
+    def process_multiline_rolecontent(self, content: str) -> str:
+        """Process rolecontent tags that span multiple lines."""
+        # Use a regex to match from the start of the line, including whitespace
+        pattern = re.compile(
+            r'(^[ \t]*)?\\rolecontent\{([^}]+)\}\{', re.MULTILINE
+        )
+        result = content
+        while True:
+            start_match = pattern.search(result)
+            if not start_match:
+                break
+            start_pos = start_match.start()
+            leading_ws = start_match.group(1) or ''
+            roles_str = start_match.group(2)
+            
+            # Find the matching closing brace for the content
+            brace_count = 1
+            i = start_match.end()
+            while i < len(result) and brace_count > 0:
+                if result[i] == '{':
+                    brace_count += 1
+                elif result[i] == '}':
+                    brace_count -= 1
+                i += 1
+            
+            content_inside = result[start_match.end():i-1]
+            should_include = self.should_include_content(self.parse_role_list(roles_str))
+            
+            if should_include:
+                replacement = content_inside
+            else:
+                replacement = ''
+            
+            # Replace from start_pos to i (end of closing brace)
+            result = result[:start_pos] + replacement + result[i:]
+        
+        return result
+    
     def process_content(self, content: str) -> str:
         """Process content with role-based filtering."""
+        # First, process multi-line rolecontent tags
+        content = self.process_multiline_rolecontent(content)
         lines = content.split('\n')
         processed_lines = []
         in_role_block = False
         in_exclude_block = False
         current_block_roles = set()
         block_content = []
-        
         for line in lines:
             # Check for start of exclude block
             if self.exclude_start_pattern.search(line):
                 in_exclude_block = True
-                # Don't include the start tag line
                 continue
-            
             # Check for end of exclude block
             if self.exclude_end_pattern.search(line):
                 in_exclude_block = False
-                # Don't include the end tag line
                 continue
-            
             # Skip lines if we're in an exclude block
             if in_exclude_block:
                 continue
-            
             # Check for start of rolecontent block
             start_match = self.start_tag_pattern.search(line)
             if start_match:
                 in_role_block = True
                 roles_str = start_match.group(1)
                 current_block_roles = self.parse_role_list(roles_str)
-                # Don't include the start tag line
                 continue
-            
             # Check for end of rolecontent block
             if self.end_tag_pattern.search(line):
                 in_role_block = False
-                # Include block content if it should be included
                 if self.should_include_content(current_block_roles):
                     processed_lines.extend(block_content)
                 block_content = []
                 current_block_roles = set()
-                # Don't include the end tag line
                 continue
-            
             # If we're in a role block, collect content but also process inline tags
             if in_role_block:
-                # Process inline tags even within role blocks
                 processed_line = self.process_line(line)
                 if processed_line is not None:
                     block_content.append(processed_line)
             else:
-                # Process regular line (check for inline tags)
                 processed_line = self.process_line(line)
                 if processed_line is not None:
                     processed_lines.append(processed_line)
-        
         # Join lines and do a final pass to clean up any remaining inline tags
         result = '\n'.join(processed_lines)
-        
         # Final cleanup: remove any remaining inline tags that weren't processed
         result = self.inline_tag_pattern.sub('', result)
         result = self.exclude_tag_pattern.sub('', result)
-        
         # Remove empty highlights environments (no \item inside)
         result = re.sub(
             r'\\begin\{highlights\}\s*\\end\{highlights\}',
