@@ -45,16 +45,18 @@ class ResumeBuilder:
     
     def process_line(self, line: str) -> Optional[str]:
         """Process a single line and return filtered content."""
-        # Check for exclude tags first - these always remove the line
-        if self.exclude_tag_pattern.search(line):
+        # Check for exclude tags
+        stripped = line.strip()
+        # Remove the whole line only if all non-whitespace is wrapped in \exclude{...}
+        if re.fullmatch(r'\\exclude\{[^}]*\}', stripped):
             return None
-        
+        # Otherwise, remove just the \exclude{...} part(s)
+        line = self.exclude_tag_pattern.sub('', line)
         # Check for simple single-line rolecontent tags (not multi-line)
         # Only process tags that don't contain \begin or \end
         if '\\rolecontent{' in line and '\\begin{' not in line and '\\end{' not in line:
             processed_line = self.process_simple_rolecontent_tags(line)
             return processed_line
-        
         return line
     
     def process_simple_rolecontent_tags(self, line: str) -> Optional[str]:
