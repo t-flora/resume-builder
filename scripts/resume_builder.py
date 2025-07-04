@@ -37,6 +37,40 @@ class ResumeBuilder:
         """Parse comma-separated role list and return set of roles."""
         return {role.strip() for role in role_string.split(',')}
     
+    def remove_nested_exclude_tags(self, line: str) -> str:
+        r"""Remove \exclude{...} tags, handling nested braces properly."""
+        result = line
+        while True:
+            # Find the start of an exclude tag
+            start_match = re.search(r'\\exclude\{', result)
+            if not start_match:
+                break
+            
+            start_pos = start_match.start()
+            
+            # Find the matching closing brace by counting braces
+            brace_count = 1
+            content_start = start_match.end()
+            content_end = content_start
+            
+            for i, char in enumerate(result[content_start:], content_start):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        content_end = i
+                        break
+            
+            if brace_count == 0:
+                # Found matching closing brace, remove the entire tag
+                result = result[:start_pos] + result[content_end + 1:]
+            else:
+                # No matching closing brace found, skip this tag
+                break
+        
+        return result
+    
     def should_include_content(self, content_roles: Set[str]) -> bool:
         """Check if content should be included for current role."""
         if not content_roles:  # No tags = include for all roles
@@ -45,13 +79,23 @@ class ResumeBuilder:
     
     def process_line(self, line: str) -> Optional[str]:
         """Process a single line and return filtered content."""
-        # Check for exclude tags
+        # Check for exclude tags - handle nested braces properly
         stripped = line.strip()
-        # Remove the whole line only if all non-whitespace is wrapped in \exclude{...}
-        if re.fullmatch(r'\\exclude\{[^}]*\}', stripped):
+        
+        # If the line was originally blank/whitespace, preserve it
+        if not stripped:
+            return line
+        
+        # First, try to remove exclude tags and see if anything remains
+        line_without_excludes = self.remove_nested_exclude_tags(line)
+        
+        # If the line becomes empty or only whitespace after removing excludes, skip it
+        if not line_without_excludes.strip():
             return None
-        # Otherwise, remove just the \exclude{...} part(s)
-        line = self.exclude_tag_pattern.sub('', line)
+            
+        # Use the line with excludes removed
+        line = line_without_excludes
+        
         # Check for simple single-line rolecontent tags (not multi-line)
         # Only process tags that don't contain \begin or \end
         if '\\rolecontent{' in line and '\\begin{' not in line and '\\end{' not in line:
@@ -209,7 +253,7 @@ class ResumeBuilder:
         result = '\n'.join(processed_lines)
         # Final cleanup: remove any remaining inline tags that weren't processed
         result = self.inline_tag_pattern.sub('', result)
-        result = self.exclude_tag_pattern.sub('', result)
+        result = self.remove_nested_exclude_tags(result)
         # Remove empty highlights environments (no \item inside)
         result = re.sub(
             r'\\begin\{highlights\}\s*\\end\{highlights\}',
