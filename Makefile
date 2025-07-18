@@ -9,6 +9,7 @@ PDFS_DIR    := $(BUILD_DIR)/pdfs
 ROLES       := qr qd tech soleng              # add more tags here
 PDFS        := $(addprefix $(PDFS_DIR)/resume-,$(addsuffix .pdf,$(ROLES)))
 INCLUDE_LOC :=  # set to any value to include location
+INCLUDE_LANGS :=  # set to any value to include languages
 PYTHON_SCRIPT := scripts/resume_builder.py
 # ---------------------------------------------------------------------
 
@@ -19,7 +20,7 @@ all: preprocess $(PDFS)
 # Preprocess LaTeX files for all roles
 preprocess: $(ARTIFACTS_DIR)
 	@echo "Preprocessing LaTeX files for all roles..."
-	python3 $(PYTHON_SCRIPT) --source-dir $(SRC_DIR) --output-dir $(ARTIFACTS_DIR) --roles $(ROLES) $(if $(INCLUDE_LOC),--include-location,)
+	python3 $(PYTHON_SCRIPT) --source-dir $(SRC_DIR) --output-dir $(ARTIFACTS_DIR) --roles $(ROLES) $(if $(INCLUDE_LOC),--include-location,) $(if $(INCLUDE_LANGS),--include-languages,)
 
 # Generic rule: resume-qr.pdf, resume-qd.pdf, ...
 $(PDFS_DIR)/resume-%.pdf: $(ARTIFACTS_DIR)/%/main.tex $(ARTIFACTS_DIR)/%/resume-layout.sty $(ARTIFACTS_DIR)/%/role-def.tex | $(PDFS_DIR)
@@ -60,7 +61,7 @@ clean-all:
 # Build for a specific role only
 build-%: $(ARTIFACTS_DIR) $(PDFS_DIR)
 	@echo "Building for role: $*"
-	python3 $(PYTHON_SCRIPT) --source-dir $(SRC_DIR) --output-dir $(ARTIFACTS_DIR) --role $* $(if $(INCLUDE_LOC),--include-location,)
+	python3 $(PYTHON_SCRIPT) --source-dir $(SRC_DIR) --output-dir $(ARTIFACTS_DIR) --role $* $(if $(INCLUDE_LOC),--include-location,) $(if $(INCLUDE_LANGS),--include-languages,)
 	$(MAKE) $(PDFS_DIR)/resume-$*.pdf
 
 # Show available PDFs

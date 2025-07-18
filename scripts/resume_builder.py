@@ -18,12 +18,13 @@ class ResumeBuilder:
     ResumeBuilder class for processing LaTeX files and filtering content based on role tags.
     Supports nested content blocks and individual line filtering.
     """
-    def __init__(self, source_dir: str, output_dir: str, roles: List[str], include_location: bool = False):
+    def __init__(self, source_dir: str, output_dir: str, roles: List[str], include_location: bool = False, include_languages: bool = False):
         self.source_dir = Path(source_dir) # source directory containing LaTeX files
         self.output_dir = Path(output_dir) # output directory for processed files - NEW LaTeX files will be written here
         self.roles = set(roles) # set of roles to build resumes for
         self.current_role = None # current role being processed
         self.include_location = include_location # whether to include location in header
+        self.include_languages = include_languages # whether to include languages in skills section
         
         # Tag patterns
         self.start_tag_pattern = re.compile(r'\\begin\{rolecontent\}\{([^}]+)\}') # pattern matches \begin{rolecontent}{roles}
@@ -302,6 +303,7 @@ class ResumeBuilder:
         with open(role_def_file, 'w', encoding='utf-8') as f:
             f.write(f'\\def\\buildrole{{{role}}}\n')
             f.write(f'\\def\\includelocation{{{str(self.include_location).lower()}}}\n')
+            f.write(f'\\def\\includelanguages{{{str(self.include_languages).lower()}}}\n')
     
     def build_all(self) -> None:
         """Build resumes for all roles."""
@@ -332,6 +334,7 @@ class ResumeBuilder:
             with open(role_def_file, 'w', encoding='utf-8') as f:
                 f.write(f'\\def\\buildrole{{{role}}}\n')
                 f.write(f'\\def\\includelocation{{{str(self.include_location).lower()}}}\n')
+                f.write(f'\\def\\includelanguages{{{str(self.include_languages).lower()}}}\n')
 
 
 def main() -> None:
@@ -344,6 +347,8 @@ def main() -> None:
     parser.add_argument('--role', help='Build for specific role only') # build for specific role only
     parser.add_argument('--include-location', action='store_true', 
                        help='Include location in header')
+    parser.add_argument('--include-languages', action='store_true', 
+                       help='Include languages in skills section')
     
     args = parser.parse_args()
     
@@ -351,7 +356,7 @@ def main() -> None:
     if args.role:
         args.roles = [args.role]
     
-    builder = ResumeBuilder(args.source_dir, args.output_dir, args.roles, args.include_location)
+    builder = ResumeBuilder(args.source_dir, args.output_dir, args.roles, args.include_location, args.include_languages)
     
     if args.role:
         builder.build_for_role(args.role)
