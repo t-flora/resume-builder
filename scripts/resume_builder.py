@@ -38,6 +38,28 @@ class ResumeBuilder:
         """Parse comma-separated role list and return set of roles."""
         return {role.strip() for role in role_string.split(',')}
     
+    def discover_all_tags(self) -> Set[str]:
+        """Discover all role tags used in the LaTeX files."""
+        all_tags = set()
+        
+        # Search through all .tex files in source directory
+        for tex_file in self.source_dir.glob('*.tex'):
+            with open(tex_file, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Find all rolecontent tags (both block and inline)
+            # Block tags: \begin{rolecontent}{roles}
+            block_matches = self.start_tag_pattern.findall(content)
+            for match in block_matches:
+                all_tags.update(self.parse_role_list(match))
+            
+            # Inline tags: \rolecontent{roles}{content}
+            inline_matches = self.inline_tag_pattern.findall(content)
+            for match in inline_matches:
+                all_tags.update(self.parse_role_list(match[0]))
+        
+        return all_tags
+    
     def remove_nested_exclude_tags(self, line: str) -> str:
         r"""Remove \exclude{...} tags, handling nested braces properly."""
         result = line
@@ -342,19 +364,38 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='Build role-based resumes from LaTeX source') # parser for command line arguments
     parser.add_argument('--source-dir', default='tex-files', help='Source directory containing LaTeX files') # source directory containing LaTeX files
     parser.add_argument('--output-dir', default='build', help='Output directory containing processed files') # output directory for processed files
-    parser.add_argument('--roles', nargs='+', default=['qr', 'qd', 'tech', 'soleng'], 
+    parser.add_argument('--roles', nargs='+', default=['qr', 'qd', 'tech', 'soleng', 'de', 'ds'], 
                        help='List of roles to build') # pass a list of multiple roleS to build
     parser.add_argument('--role', help='Build for specific role only') # build for specific role only
     parser.add_argument('--include-location', action='store_true', 
                        help='Include location in header')
     parser.add_argument('--include-languages', action='store_true', 
                        help='Include languages in skills section')
+    parser.add_argument('--auto-discover', action='store_true',
+                       help='Automatically discover all tags used in LaTeX files and build for all of them')
+    parser.add_argument('--list-tags', action='store_true',
+                       help='List all tags discovered in LaTeX files and exit')
     
     args = parser.parse_args()
     
     # If --role is specified, override --roles to contain only that role
     if args.role:
         args.roles = [args.role]
+    # If --auto-discover is specified, discover all tags from LaTeX files
+    elif args.auto_discover:
+        temp_builder = ResumeBuilder(args.source_dir, args.output_dir, [], args.include_location, args.include_languages)
+        discovered_tags = temp_builder.discover_all_tags()
+        args.roles = sorted(list(discovered_tags))
+        print(f"Auto-discovered tags: {', '.join(args.roles)}")
+    
+    # If --list-tags is specified, just list tags and exit
+    if args.list_tags:
+        temp_builder = ResumeBuilder(args.source_dir, args.output_dir, [], args.include_location, args.include_languages)
+        discovered_tags = temp_builder.discover_all_tags()
+        print("Tags found in LaTeX files:")
+        for tag in sorted(discovered_tags):
+            print(f"  - {tag}")
+        return
     
     builder = ResumeBuilder(args.source_dir, args.output_dir, args.roles, args.include_location, args.include_languages)
     

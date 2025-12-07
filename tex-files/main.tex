@@ -46,6 +46,7 @@
 \ifPDFTeX
     \input{glyphtounicode}
     \pdfgentounicode=1
+    \pdfinterwordspaceon       % CRITICAL: preserves spaces when copying text
     \usepackage[T1]{fontenc}
     % serif + math
     \usepackage{textcomp}      % extra symbols
@@ -179,7 +180,7 @@
         \ignorespaces
     }
     \newsavebox\ANDbox
-    \sbox\ANDbox{$|$}
+    \sbox\ANDbox{ $|$ }  % spaces inside the box are preserved in PDF text layer
 
 % Include header
 \input{header}
