@@ -364,7 +364,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description='Build role-based resumes from LaTeX source') # parser for command line arguments
     parser.add_argument('--source-dir', default='tex-files', help='Source directory containing LaTeX files') # source directory containing LaTeX files
     parser.add_argument('--output-dir', default='build', help='Output directory containing processed files') # output directory for processed files
-    parser.add_argument('--roles', nargs='+', default=['qr', 'qd', 'tech', 'soleng', 'de', 'ds'], 
+    parser.add_argument('--roles', nargs='+', default=['qr', 'qd', 'ai', 'tech', 'soleng', 'de', 'ds'], 
                        help='List of roles to build') # pass a list of multiple roleS to build
     parser.add_argument('--role', help='Build for specific role only') # build for specific role only
     parser.add_argument('--include-location', action='store_true', 

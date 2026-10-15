@@ -24,6 +24,7 @@ make all
 ```bash
 make qr      # Build for quantitative research role
 make qd      # Build for quantitative development role
+make ai      # Build for AI role
 make tech    # Build for technical role
 make soleng  # Build for solutions engineering role
 ```
@@ -96,6 +97,7 @@ Content without any tags appears in all role builds.
 | `make all` | Build PDFs for all roles |
 | `make qr` | Build PDF for quantitative research role |
 | `make qd` | Build PDF for quantitative development role |
+| `make ai` | Build PDF for AI role |
 | `make tech` | Build PDF for technical role |
 | `make soleng` | Build PDF for solutions engineering role |
 | `make build-rolename` | Build for custom role |

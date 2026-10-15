@@ -6,7 +6,7 @@ STYLE       := templates/resume-layout.sty
 BUILD_DIR   := build
 ARTIFACTS_DIR := $(BUILD_DIR)/artifacts
 PDFS_DIR    := $(BUILD_DIR)/pdfs
-ROLES       := qr qd tech soleng de ds        # add more tags here
+ROLES       := qr qd ai tech soleng de ds        # add more tags here
 PDFS        := $(addprefix $(PDFS_DIR)/resume-,$(addsuffix .pdf,$(ROLES)))
 INCLUDE_LOC :=  # set to any value to include location
 INCLUDE_LANGS :=  # set to any value to include languages
@@ -30,7 +30,7 @@ $(PDFS_DIR)/resume-%.pdf: $(ARTIFACTS_DIR)/%/main.tex $(ARTIFACTS_DIR)/%/resume-
 	pdflatex -jobname=resume-$* -interaction=nonstopmode main.tex && \
 	mv resume-$*.pdf ../../pdfs/
 
-# Convenience phony targets (qr, qd, tech, soleng)
+# Convenience phony targets (qr, qd, ai, tech, soleng)
 $(ROLES): preprocess
 	$(MAKE) $(PDFS_DIR)/resume-$@.pdf
 
